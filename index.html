@@ -1,0 +1,494 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分红再投资计算器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .calculator {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f4fc;
+            border-radius: 4px;
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .chart-container {
+            margin-top: 20px;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>分红再投资计算器</h1>
+    
+    <div class="calculator">
+        <div class="form-group">
+            <label for="initialInvestment">初始投资金额 (元)</label>
+            <input type="number" id="initialInvestment" value="10000" min="0" step="100">
+        </div>
+        
+        <div class="form-group">
+            <label for="initialPrice">初始每股价格 (元)</label>
+            <input type="number" id="initialPrice" value="100" min="0.01" step="0.01">
+        </div>
+        
+        <div class="form-group">
+            <label for="dividendYield">年股息率 (%)</label>
+            <input type="number" id="dividendYield" value="5" min="0" step="0.1">
+        </div>
+        
+        <div class="form-group">
+            <label for="growthRate">股价年增长率 (%)</label>
+            <input type="number" id="growthRate" value="3" min="0" step="0.1">
+        </div>
+        
+        <div class="form-group">
+            <label for="dividendFrequency">分红频率</label>
+            <select id="dividendFrequency" style="width: 100%; padding: 8px;">
+                <option value="1">每年</option>
+                <option value="2" selected>每半年</option>
+                <option value="4">每季度</option>
+                <option value="12">每月</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="years">计算年限 (年)</label>
+            <input type="number" id="years" value="10" min="1" max="50" step="1">
+        </div>
+        
+        <button onclick="calculate()">计算</button>
+        
+        <div id="results" class="results">
+            <h3>计算结果</h3>
+            <div id="summary"></div>
+            
+            <div class="chart-container">
+                <canvas id="growthChart"></canvas>
+            </div>
+            
+            <h3>详细年度数据</h3>
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>年份</th>
+                        <th>股价 (元)</th>
+                        <th>持股数量</th>
+                        <th>投资价值 (元)</th>
+                        <th>年度分红 (元)</th>
+                        <th>再投资股数</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                </tbody>
+            </table>
+
+<p class="ds-markdown-paragraph" style="font-size:16.002px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	分红再投资(DRIP)的持平时间计算需要考虑以下几个关键因素：
+</p>
+<ol style="color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;font-size:16.002px;background-color:#FFFFFF;">
+	<li>
+		<p class="ds-markdown-paragraph">
+			<span style="font-weight:600;">初始投资金额</span>：您最初投入的资金量
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			<span style="font-weight:600;">股息率</span>：股票或基金的年化分红比例
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			<span style="font-weight:600;">分红频率</span>：季度、半年或年度分红
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			<span style="font-weight:600;">股价增长率</span>：除分红外的股价年增长率
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			<span style="font-weight:600;">分红再投资时的价格</span>：通常使用除权后的价格
+		</p>
+	</li>
+</ol>
+<h2 style="font-size:22.86px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	基本计算公式
+</h2>
+<p class="ds-markdown-paragraph" style="font-size:16.002px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	持平时间(年) = ln(目标股数/初始股数) / ln(1 + 股息率 + 股价增长率)
+</p>
+<p class="ds-markdown-paragraph" style="font-size:16.002px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	其中：
+</p>
+<ul style="color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;font-size:16.002px;background-color:#FFFFFF;">
+	<li>
+		<p class="ds-markdown-paragraph">
+			目标股数 = 初始投资额 / 当前股价
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			初始股数 = 初始投资额 / 初始股价
+		</p>
+	</li>
+</ul>
+<h2 style="font-size:22.86px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	简化示例
+</h2>
+<p class="ds-markdown-paragraph" style="font-size:16.002px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	假设：
+</p>
+<ul style="color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;font-size:16.002px;background-color:#FFFFFF;">
+	<li>
+		<p class="ds-markdown-paragraph">
+			初始投资：10,000元
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			初始股价：100元 → 初始持有100股
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			年股息率：5%
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			股价年增长率：3%
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			季度分红(每年复利4次)
+		</p>
+	</li>
+</ul>
+<p class="ds-markdown-paragraph" style="font-size:16.002px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	大约需要&nbsp;<span style="font-weight:600;">9-11年</span>&nbsp;通过分红再投资可以达到股数翻倍，实现"持平"效果。
+</p>
+<h2 style="font-size:22.86px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	精确计算工具
+</h2>
+<p class="ds-markdown-paragraph" style="font-size:16.002px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	要获得精确计算结果，建议使用专业的金融计算器或Excel表格，输入以下变量：
+</p>
+<ul style="color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;font-size:16.002px;background-color:#FFFFFF;">
+	<li>
+		<p class="ds-markdown-paragraph">
+			初始投资额
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			当前股价
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			预期股息率
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			预期股价增长率
+		</p>
+	</li>
+	<li>
+		<p class="ds-markdown-paragraph">
+			分红再投资时的交易成本(如有)
+		</p>
+	</li>
+</ul>
+<p class="ds-markdown-paragraph" style="font-size:16.002px;color:#404040;font-family:quote-cjk-patch, Inter, system-ui, -apple-system, BlinkMacSystemFont, &quot;background-color:#FFFFFF;">
+	您需要更具体的计算吗？可以提供您的具体参数，我可以帮您做更精确的估算。
+</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let growthChart = null;
+        
+        function calculate() {
+            // 获取输入值
+            const initialInvestment = parseFloat(document.getElementById('initialInvestment').value);
+            const initialPrice = parseFloat(document.getElementById('initialPrice').value);
+            const dividendYield = parseFloat(document.getElementById('dividendYield').value) / 100;
+            const growthRate = parseFloat(document.getElementById('growthRate').value) / 100;
+            const dividendFrequency = parseInt(document.getElementById('dividendFrequency').value);
+            const years = parseInt(document.getElementById('years').value);
+            
+            // 验证输入
+            if (isNaN(initialInvestment) || isNaN(initialPrice) || isNaN(dividendYield) || isNaN(growthRate) || isNaN(years)) {
+                alert("请输入有效的数值");
+                return;
+            }
+            
+            // 初始化变量
+            let shares = initialInvestment / initialPrice;
+            let currentPrice = initialPrice;
+            let totalValue = initialInvestment;
+            let totalDividends = 0;
+            
+            // 准备结果数据
+            const results = [];
+            const labels = [];
+            const valueData = [];
+            const priceData = [];
+            const sharesData = [];
+            
+            // 添加初始数据
+            results.push({
+                year: 0,
+                price: currentPrice,
+                shares: shares,
+                value: totalValue,
+                dividend: 0,
+                reinvestedShares: 0
+            });
+            
+            labels.push("初始");
+            valueData.push(totalValue);
+            priceData.push(currentPrice);
+            sharesData.push(shares);
+            
+            // 计算每年的增长
+            for (let year = 1; year <= years; year++) {
+                // 股价增长
+                currentPrice *= (1 + growthRate);
+                
+                // 计算分红
+                let annualDividend = 0;
+                let reinvestedShares = 0;
+                
+                // 按分红频率计算
+                for (let i = 0; i < dividendFrequency; i++) {
+                    const dividendPerShare = currentPrice * (dividendYield / dividendFrequency);
+                    const dividend = shares * dividendPerShare;
+                    annualDividend += dividend;
+                    
+                    // 分红再投资
+                    const newShares = dividend / currentPrice;
+                    reinvestedShares += newShares;
+                    shares += newShares;
+                }
+                
+                totalDividends += annualDividend;
+                totalValue = shares * currentPrice;
+                
+                // 记录结果
+                results.push({
+                    year: year,
+                    price: currentPrice,
+                    shares: shares,
+                    value: totalValue,
+                    dividend: annualDividend,
+                    reinvestedShares: reinvestedShares
+                });
+                
+                labels.push(`第 ${year} 年`);
+                valueData.push(totalValue);
+                priceData.push(currentPrice);
+                sharesData.push(shares);
+            }
+            
+            // 显示结果
+            displayResults(results, initialInvestment);
+            
+            // 绘制图表
+            drawChart(labels, valueData, priceData, sharesData);
+            
+            // 显示结果区域
+            document.getElementById('results').style.display = 'block';
+        }
+        
+        function displayResults(results, initialInvestment) {
+            const lastResult = results[results.length - 1];
+            const initialResult = results[0];
+            
+            // 计算摘要信息
+            const totalGrowth = ((lastResult.value - initialInvestment) / initialInvestment * 100).toFixed(2);
+            const cagr = (Math.pow(lastResult.value / initialInvestment, 1 / lastResult.year) - 1) * 100;
+            
+            const summary = `
+                <p>初始投资: ${initialInvestment.toFixed(2)} 元</p>
+                <p>最终价值: ${lastResult.value.toFixed(2)} 元 (增长 ${totalGrowth}%)</p>
+                <p>年复合增长率 (CAGR): ${cagr.toFixed(2)}%</p>
+                <p>累计分红: ${results.slice(1).reduce((sum, r) => sum + r.dividend, 0).toFixed(2)} 元</p>
+                <p>持股数量: 从 ${initialResult.shares.toFixed(2)} 股增长到 ${lastResult.shares.toFixed(2)} 股</p>
+                <p>每股价格: 从 ${initialResult.price.toFixed(2)} 元增长到 ${lastResult.price.toFixed(2)} 元</p>
+            `;
+            
+            document.getElementById('summary').innerHTML = summary;
+            
+            // 填充表格
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+            
+            // 只显示每一年数据（不显示每次分红）
+            results.forEach((result, index) => {
+                if (index === 0 || index === results.length - 1 || index % 1 === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${result.year === 0 ? '初始' : '第 ' + result.year + ' 年'}</td>
+                        <td>${result.price.toFixed(2)}</td>
+                        <td>${result.shares.toFixed(2)}</td>
+                        <td>${result.value.toFixed(2)}</td>
+                        <td>${result.dividend.toFixed(2)}</td>
+                        <td>${result.reinvestedShares.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(row);
+                }
+            });
+        }
+        
+        function drawChart(labels, valueData, priceData, sharesData) {
+            const ctx = document.getElementById('growthChart').getContext('2d');
+            
+            // 如果已有图表，先销毁
+            if (growthChart) {
+                growthChart.destroy();
+            }
+            
+            growthChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '投资总价值 (元)',
+                            data: valueData,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            borderWidth: 2,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '每股价格 (元)',
+                            data: priceData,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            borderWidth: 2,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: '持股数量 (股)',
+                            data: sharesData,
+                            borderColor: 'rgb(54, 162, 235)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            borderWidth: 2,
+                            yAxisID: 'y2'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '投资价值 (元)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            title: {
+                                display: true,
+                                text: '每股价格 (元)'
+                            }
+                        },
+                        y2: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            title: {
+                                display: true,
+                                text: '持股数量 (股)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
