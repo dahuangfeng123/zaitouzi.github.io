@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拼多多直通车投产比计算器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .unit {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 14px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-calculate {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-calculate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-reset {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-reset:hover {
+            background: #e0e0e0;
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .result-highlight {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .result-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .result-highlight .result-title,
+        .result-success .result-title {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .conclusion {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .conclusion-title {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 8px;
+        }
+
+        .conclusion-text {
+            color: #856404;
+            line-height: 1.6;
+        }
+
+        .formula-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .formula-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .formula-item {
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 25px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 拼多多直通车投产比计算器</h1>
+        <p class="subtitle">精准计算保本ROI，优化推广策略</p>
+
+        <div class="input-group">
+            <label for="price">商品售价</label>
+            <div class="input-wrapper">
+                <input type="number" id="price" placeholder="请输入售价" step="0.01" min="0">
+                <span class="unit">元</span>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="cost">商品成本</label>
+            <div class="input-wrapper">
+                <input type="number" id="cost" placeholder="请输入成本" step="0.01" min="0">
+                <span class="unit">元</span>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="returnRate">退货率（可选）</label>
+            <div class="input-wrapper">
+                <input type="number" id="returnRate" placeholder="请输入退货率，默认0" step="1" min="0" max="100" value="0">
+                <span class="unit">%</span>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-calculate" onclick="calculate()">立即计算</button>
+            <button class="btn-reset" onclick="reset()">重置</button>
+        </div>
+
+        <div class="results" id="results">
+            <div class="result-card">
+                <div class="result-title">毛利润</div>
+                <div class="result-value" id="profit">-</div>
+            </div>
+
+            <div class="result-card">
+                <div class="result-title">毛利率</div>
+                <div class="result-value" id="profitRate">-</div>
+            </div>
+
+            <div class="result-card result-highlight">
+                <div class="result-title">基础保本ROI（无退货）</div>
+                <div class="result-value" id="basicROI">-</div>
+            </div>
+
+            <div class="result-card result-success" id="finalROICard" style="display:none;">
+                <div class="result-title">实际保本ROI（含退货率）</div>
+                <div class="result-value" id="finalROI">-</div>
+            </div>
+
+            <div class="conclusion">
+                <div class="conclusion-title">💡 结论</div>
+                <div class="conclusion-text" id="conclusion">-</div>
+            </div>
+        </div>
+
+        <div class="formula-section">
+            <div class="formula-title">📋 计算公式说明</div>
+            <div class="formula-item">• 毛利润 = 售价 - 成本</div>
+            <div class="formula-item">• 毛利率 = 毛利润 ÷ 售价 × 100%</div>
+            <div class="formula-item">• 基础保本ROI = 1 ÷ 毛利率</div>
+            <div class="formula-item">• 实际保本ROI = 基础保本ROI × (1 + 退货率)</div>
+        </div>
+    </div>
+
+    <script>
+        function calculate() {
+            const price = parseFloat(document.getElementById('price').value);
+            const cost = parseFloat(document.getElementById('cost').value);
+            const returnRate = parseFloat(document.getElementById('returnRate').value) || 0;
+
+            if (!price || !cost) {
+                alert('请输入售价和成本！');
+                return;
+            }
+
+            if (price <= 0 || cost <= 0) {
+                alert('售价和成本必须大于0！');
+                return;
+            }
+
+            if (cost >= price) {
+                alert('成本不能大于或等于售价！');
+                return;
+            }
+
+            if (returnRate < 0 || returnRate > 100) {
+                alert('退货率应在0-100之间！');
+                return;
+            }
+
+            const profit = price - cost;
+            const profitRate = (profit / price) * 100;
+            const basicROI = 1 / (profitRate / 100);
+            const finalROI = basicROI * (1 + returnRate / 100);
+
+            document.getElementById('profit').textContent = profit.toFixed(2) + ' 元';
+            document.getElementById('profitRate').textContent = profitRate.toFixed(2) + '%';
+            document.getElementById('basicROI').textContent = basicROI.toFixed(2);
+
+            if (returnRate > 0) {
+                document.getElementById('finalROICard').style.display = 'block';
+                document.getElementById('finalROI').textContent = finalROI.toFixed(2);
+                document.getElementById('conclusion').innerHTML = 
+                    `当前退货率为 <strong>${returnRate}%</strong><br>` +
+                    `实际推广ROI需要 <strong>大于 ${finalROI.toFixed(2)}</strong> 才能盈利<br>` +
+                    `ROI = ${finalROI.toFixed(2)} 时保本，ROI < ${finalROI.toFixed(2)} 时亏损`;
+            } else {
+                document.getElementById('finalROICard').style.display = 'none';
+                document.getElementById('conclusion').innerHTML = 
+                    `推广ROI需要 <strong>大于 ${basicROI.toFixed(2)}</strong> 才能盈利<br>` +
+                    `ROI = ${basicROI.toFixed(2)} 时保本，ROI < ${basicROI.toFixed(2)} 时亏损`;
+            }
+
+            document.getElementById('results').classList.add('show');
+        }
+
+        function reset() {
+            document.getElementById('price').value = '';
+            document.getElementById('cost').value = '';
+            document.getElementById('returnRate').value = '0';
+            document.getElementById('results').classList.remove('show');
+        }
+
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    calculate();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
