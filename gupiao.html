@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A股智能补仓计算器 (A股配色)</title>
+    <style>
+        /* --- 现代化 UI / 基础样式 (模仿 Tailwind CSS 风格) --- */
+        :root {
+            --primary: #3b82f6; /* Blue 500 */
+            --primary-dark: #2563eb; /* Blue 600 */
+            --bg: #f9fafb; /* Gray 50 */
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-sub: #6b7280;
+            /* 颜色反转：盈利/上涨（红），亏损/下跌（绿） */
+            --profit: #ef4444;   /* Red 500 (盈利/上涨) */
+            --loss: #10b981;     /* Green 500 (亏损/下跌) */
+            --warning: #f59e0b;  /* Amber 500 (提示) */
+            --border: #e5e7eb;   /* Gray 200 */
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px 10px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 50px;
+        }
+
+        /* 头部 */
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+        .header p { margin: 5px 0 0; font-size: 0.875rem; opacity: 0.9; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            padding: 4px;
+        }
+        .tab {
+            flex: 1;
+            padding: 10px 5px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-sub);
+            transition: all 0.2s;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .tab:hover { background-color: #f3f4f6; }
+        /* 初始不设置 active，在 JS 中设置默认激活项 */
+        .tab.active {
+            color: var(--primary-dark);
+            background: var(--card-bg);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .content { padding: 20px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+        
+        /* 输入框 */
+        .input-wrapper input, .input-wrapper textarea {
+            width: 100%;
+            padding: 12px;
+            font-size: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #ffffff;
+        }
+        .input-wrapper input:focus, .input-wrapper textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* ring-4 */
+        }
+        .input-wrapper { position: relative; }
+        .input-suffix {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-sub);
+            font-size: 0.875rem;
+        }
+
+        /* 费率设置 */
+        .settings-toggle {
+            font-size: 0.875rem;
+            color: var(--primary);
+            cursor: pointer;
+            margin-bottom: 15px;
+            display: inline-block;
+            font-weight: 500;
+        }
+        .advanced-settings {
+            display: none;
+            background: #fefce8; /* Yellow 50 */
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #fde68a; /* Yellow 200 */
+        }
+        .advanced-settings.show { display: block; }
+
+        /* 按钮 */
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin-top: 10px;
+        }
+        .btn:hover { background: var(--primary-dark); }
+        .btn:active { transform: scale(0.99); }
+
+        /* 结果卡片 */
+        .result-card {
+            margin-top: 25px;
+            background: #eff6ff; /* Blue 50 */
+            border: 1px solid #bfdbfe; /* Blue 200 */
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+        .result-row.info {
+            color: var(--text-sub);
+            font-size: 0.8rem;
+            border-bottom: 1px dotted var(--border);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        .result-row.total {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #bfdbfe;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: var(--primary-dark);
+        }
+        /* 颜色类反转 (A股风格) */
+        .highlight-red { color: var(--profit); font-weight: 700; }
+        .highlight-green { color: var(--loss); font-weight: 700; }
+        .fee-note { font-size: 0.75rem; color: var(--text-sub); margin-top: 10px; text-align: right; }
+
+        /* --- 历史记录 UI 优化 (持仓列表) --- */
+        .history-list { list-style: none; padding: 0; margin: 0; }
+        .history-item {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* shadow-sm */
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .history-item:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .stock-name-display { font-size: 1rem; font-weight: 700; color: var(--text-main); }
+        .timestamp-display { font-size: 0.75rem; color: var(--text-sub); }
+        
+        .history-item-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.9rem;
+        }
+        .history-item-content strong { color: var(--text-main); font-weight: 600; }
+        .memo-snippet {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 4px;
+        }
+
+        /* 盈亏行调整为两列显示：金额和比例 */
+        .history-pnl {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border);
+            font-weight: 700;
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 分成两列 */
+            gap: 10px;
+        }
+        .pnl-label { color: var(--text-sub); font-weight: 500; font-size: 0.85rem; }
+        .pnl-value { text-align: right; }
+
+
+        .history-item-actions {
+            margin-top: 15px;
+            text-align: right;
+        }
+        .history-item-actions button {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .history-item-actions .btn-delete { color: var(--primary); border-color: var(--primary); }
+        .history-item-actions .btn-edit { color: var(--primary); border-color: var(--primary); }
+        .history-item-actions button:hover { opacity: 0.9; }
+
+        /* --- Toast Notification System 优化 --- */
+        #toastContainer {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            transform: translateY(20px);
+            min-width: 250px;
+            text-align: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* 保持 Toast 颜色一致，使用成功/警告色 */
+        .toast.success { background-color: var(--loss); } 
+        .toast.error { background-color: var(--profit); } 
+        .toast.warning { background-color: var(--warning); color: var(--text-main); }
+    </style>
+</head>
+<body>
+
+<div id="toastContainer"></div>
+
+<div class="container">
+    <div class="header">
+        <h1>📈 A股补仓计算器</h1>
+        <p>专业记录与盈亏分析</p>
+    </div>
+
+    <div class="tabs">
+        <div class="tab" data-mode="cost" onclick="switchTab('cost')">算新成本</div>
+        <div class="tab" data-mode="target" onclick="switchTab('target')">反推需补多少</div>
+        <div class="tab active" data-mode="history" onclick="switchTab('history')">持仓列表 💾</div>
+    </div>
+
+    <div class="content">
+        <div id="mode-history">
+            <ul class="history-list" id="historyList">
+                </ul>
+        </div>
+        
+        <div id="calculator-area" style="display:none;">
+             <input type="hidden" id="editingId" value="">
+
+            <div class="form-group">
+                <label>股票/基金名称</label>
+                <div class="input-wrapper">
+                    <input type="text" id="stockName" placeholder="例如：贵州茅台 / 510300">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>当前持仓股数</label>
+                <div class="input-wrapper">
+                    <input type="number" id="currentShares" placeholder="例如：1000">
+                    <span class="input-suffix">股</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>当前成本价 (保本价)</label>
+                <div class="input-wrapper">
+                    <input type="number" id="currentCost" step="0.001" placeholder="例如：10.5">
+                    <span class="input-suffix">元</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>当前市场价 (补仓价)</label>
+                <div class="input-wrapper">
+                    <input type="number" id="marketPrice" step="0.001" placeholder="例如：9.0">
+                    <span class="input-suffix">元</span>
+                </div>
+            </div>
+
+            <div class="settings-toggle" onclick="toggleSettings()">⚙️ 费率设置 (默认万3，点击修改)</div>
+            <div class="advanced-settings" id="settingsPanel">
+                <div class="form-group">
+                    <label>佣金费率 (如万3填0.0003)</label>
+                    <input type="number" id="commissionRate" value="0.0003" step="0.0001">
+                </div>
+                <div class="form-group">
+                    <label>最低佣金 (元)</label>
+                    <input type="number" id="minCommission" value="5">
+                </div>
+                <div class="form-group">
+                    <label>过户费率 (沪市万0.1，深市/ETF通常为0)</label>
+                    <input type="number" id="transferRate" value="0.00001" step="0.00001">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>📓 备忘/分析 (记录操作理由)</label>
+                <div class="input-wrapper">
+                    <textarea id="memo" placeholder="例如：市场情绪低迷，跌破支撑位，计划补仓摊低成本，预计持有一年。"></textarea>
+                </div>
+            </div>
+
+            <div id="mode-cost">
+                <div class="form-group">
+                    <label style="color:var(--primary-dark)">👇 计划补仓股数 (填 0 可只计算盈亏)</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="buyShares" placeholder="必须为100的倍数或 0" step="100">
+                        <span class="input-suffix">股</span>
+                    </div>
+                </div>
+                <button class="btn" onclick="calculateNewCost()">计算并保存持仓</button>
+            </div>
+
+            <div id="mode-target" style="display:none;">
+                <div class="form-group">
+                    <label style="color:var(--primary-dark)">🎯 目标成本价</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="targetCost" placeholder="想降到多少？" step="0.01">
+                        <span class="input-suffix">元</span>
+                    </div>
+                </div>
+                <button class="btn" onclick="calculateTarget()">反推并保存持仓</button>
+            </div>
+
+            <div class="result-card" id="resultCard">
+                </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'stock_calc_history';
+    let currentMode = 'history'; // 默认模式改为 history
+
+    // --- Toast Notification System ---
+    let toastTimeout;
+    function showToast(message, type = 'info') {
+        clearTimeout(toastTimeout);
+        
+        const container = document.getElementById('toastContainer');
+        container.innerHTML = ''; 
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+
+        toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 300);
+        }, 3000);
+    }
+    
+    // --- Form Clearing ---
+    function clearForm() {
+        document.getElementById('stockName').value = '';
+        document.getElementById('currentShares').value = '';
+        document.getElementById('currentCost').value = '';
+        document.getElementById('marketPrice').value = '';
+        document.getElementById('buyShares').value = '';
+        document.getElementById('targetCost').value = '';
+        document.getElementById('memo').value = '';
+        document.getElementById('resultCard').style.display = 'none';
+        document.getElementById('editingId').value = '';
+    }
+    
+    // --- Tab Switching and UI Helpers ---
+
+    function switchTab(mode) {
+        currentMode = mode;
+        const tabs = document.querySelectorAll('.tab');
+        const calcArea = document.getElementById('calculator-area');
+        const modeCost = document.getElementById('mode-cost');
+        const modeTarget = document.getElementById('mode-target');
+        const modeHistory = document.getElementById('mode-history');
+        const resultCard = document.getElementById('resultCard');
+        
+        tabs.forEach(tab => tab.classList.remove('active'));
+
+        if (mode === 'history') {
+            document.querySelector(`[data-mode="history"]`).classList.add('active');
+            calcArea.style.display = 'none';
+            modeHistory.style.display = 'block';
+            resultCard.style.display = 'none';
+            renderHistory();
+        } else {
+            document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+            calcArea.style.display = 'block';
+            modeHistory.style.display = 'none';
+            modeCost.style.display = mode === 'cost' ? 'block' : 'none';
+            modeTarget.style.display = mode === 'target' ? 'block' : 'none';
+        }
+    }
+
+    function toggleSettings() {
+        document.getElementById('settingsPanel').classList.toggle('show');
+    }
+
+    function showResult(html) {
+        const card = document.getElementById('resultCard');
+        card.innerHTML = html;
+        card.style.display = 'block';
+        card.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // --- Calculation Logic ---
+
+    function getFees(amount) {
+        const rate = parseFloat(document.getElementById('commissionRate').value);
+        const minFee = parseFloat(document.getElementById('minCommission').value);
+        const transferRate = parseFloat(document.getElementById('transferRate').value);
+
+        let comm = amount * rate;
+        if (comm < minFee) comm = minFee;
+        
+        let transfer = amount * transferRate;
+        return comm + transfer;
+    }
+
+    function calculateNewCost() {
+        const stockName = document.getElementById('stockName').value.trim() || '未命名股票/基金';
+        const memo = document.getElementById('memo').value.trim();
+        const currentShares = parseFloat(document.getElementById('currentShares').value);
+        const currentCost = parseFloat(document.getElementById('currentCost').value);
+        const marketPrice = parseFloat(document.getElementById('marketPrice').value);
+        let buyShares = parseFloat(document.getElementById('buyShares').value);
+        
+        // 当 buyShares 为空或 NaN 时，默认为 0
+        if (isNaN(buyShares)) {
+            buyShares = 0;
+            document.getElementById('buyShares').value = 0; // 自动填充为 0
+        }
+
+
+        if (isNaN(currentShares) || isNaN(currentCost) || isNaN(marketPrice)) {
+            showToast("请填写当前持仓、成本价和市场价", 'error');
+            return;
+        }
+
+        const oldAmount = currentShares * currentCost;
+        const buyAmount = buyShares * marketPrice;
+        
+        let fees = 0;
+        
+        // --- 修正: 仅在实际发生购买时计算费用 ---
+        if (buyShares > 0) {
+            fees = getFees(buyAmount);
+        }
+        
+        const totalCost = oldAmount + buyAmount + fees;
+        const totalShares = currentShares + buyShares;
+        
+        // 计算新的平均成本 (如果总股数为 0, 则成本为旧成本)
+        const newAvg = totalShares > 0 ? totalCost / totalShares : currentCost; 
+        
+        // 当 buyShares = 0 时，成本下降幅度 diff 应为 0
+        const diff = buyShares > 0 ? currentCost - newAvg : 0; 
+        
+        // P&L calculation always uses the current market price and the new/existing average cost
+        const pnlAmount = (marketPrice - newAvg) * totalShares;
+        const pnlPercent = (marketPrice / newAvg - 1) * 100;
+
+        // --- A股配色逻辑 ---
+        const pnlClass = pnlAmount >= 0 ? 'highlight-red' : 'highlight-green'; // 盈利/上涨用红色
+        const diffClass = diff > 0 ? 'highlight-red' : (diff < 0 ? 'highlight-green' : ''); // 成本下降用红色，上升用绿色 (虽然通常不会上升，但以防万一)
+        const pnlSign = pnlAmount >= 0 ? '+' : '';
+
+        // 动态调整结果卡的显示内容
+        let costResultRow = '';
+        let feeRow = '';
+        
+        if (buyShares > 0) {
+             costResultRow = `
+                <div class="result-row total">
+                    <span>补仓后成本</span>
+                    <span class="highlight-green">${newAvg.toFixed(3)} 元</span>
+                </div>
+                <div class="result-row">
+                    <span>成本降低幅度</span>
+                    <span class="${diffClass}">${diff.toFixed(3)} 元</span>
+                </div>
+            `;
+            feeRow = `
+                <div class="result-row">
+                    <span>预估手续费</span>
+                    <span>${fees.toFixed(2)} 元</span>
+                </div>
+            `;
+        } else {
+             costResultRow = `
+                <div class="result-row total">
+                    <span>现有成本</span>
+                    <span class="highlight-green">${currentCost.toFixed(3)} 元</span>
+                </div>
+                <div class="result-row">
+                    <span>持仓股数</span>
+                    <span>${totalShares.toLocaleString()} 股</span>
+                </div>
+            `;
+            // 当 buyShares = 0 时，fees = 0，不显示手续费
+        }
+
+        const outputHTML = `
+            <div class="result-row info">
+                <span>${stockName}</span>
+                <span>${new Date().toLocaleString()}</span>
+            </div>
+            ${buyShares > 0 ? `<div class="result-row"><span>本次补仓金额</span><span>${buyAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} 元</span></div>` : ''}
+            ${feeRow}
+            ${costResultRow}
+            <hr style="border-top: 1px dashed #ccc; margin: 10px 0;">
+            <div class="result-row">
+                <span>当前盈亏金额 (${buyShares > 0 ? '基于新成本' : '基于现有成本'})</span>
+                <span class="${pnlClass}">${pnlSign}${pnlAmount.toFixed(2).toLocaleString()} 元</span>
+            </div>
+            <div class="result-row">
+                <span>当前盈亏比例</span>
+                <span class="${pnlClass}">${pnlSign}${pnlPercent.toFixed(2)} %</span>
+            </div>
+            <div class="fee-note">盈亏是基于当前市价和平均成本计算的理论值。</div>
+        `;
+
+        showResult(outputHTML);
+        
+        // Save to History and Clear Form
+        saveHistory({
+            mode: 'cost',
+            stockName,
+            memo,
+            input: { currentShares, currentCost, marketPrice, buyShares },
+            output: { newAvg, fees, buyAmount, totalShares, diff, pnlAmount, pnlPercent },
+            html: outputHTML
+        });
+        clearForm();
+    }
+
+    function calculateTarget() {
+        const stockName = document.getElementById('stockName').value.trim() || '未命名股票/基金';
+        const memo = document.getElementById('memo').value.trim();
+        const currentShares = parseFloat(document.getElementById('currentShares').value);
+        const currentCost = parseFloat(document.getElementById('currentCost').value);
+        const marketPrice = parseFloat(document.getElementById('marketPrice').value);
+        const targetCost = parseFloat(document.getElementById('targetCost').value);
+
+        if (isNaN(currentShares) || isNaN(currentCost) || isNaN(marketPrice) || isNaN(targetCost)) {
+            showToast("请填写所有必填的数字项", 'error');
+            return;
+        }
+
+        if (targetCost <= marketPrice) {
+            showToast("目标成本必须高于当前市场价。", 'error');
+            return;
+        }
+        if (targetCost >= currentCost) {
+            showToast("目标成本应低于当前成本。", 'error');
+            return;
+        }
+
+        let found = false;
+        let bestShares = 0;
+        let bestFees = 0;
+        
+        const oldAmount = currentShares * currentCost;
+
+        // 暴力求解法（步长100股）
+        for (let shares = 100; shares <= 1000000; shares += 100) {
+            const buyAmount = shares * marketPrice;
+            const fees = getFees(buyAmount);
+            const newTotal = oldAmount + buyAmount + fees;
+            const newAvg = newTotal / (currentShares + shares);
+
+            if (newAvg <= targetCost) {
+                found = true;
+                bestShares = shares;
+                bestFees = fees;
+                break;
+            }
+        }
+
+        let outputHTML;
+        let pnlAmount = 0;
+        let pnlPercent = 0;
+
+        if (found) {
+            const moneyNeeded = bestShares * marketPrice;
+            const totalShares = currentShares + bestShares;
+            
+            pnlAmount = (marketPrice - targetCost) * totalShares;
+            pnlPercent = (marketPrice / targetCost - 1) * 100;
+            
+            // --- A股配色逻辑 ---
+            const pnlClass = pnlAmount >= 0 ? 'highlight-red' : 'highlight-green'; // 盈利/上涨用红色
+            const pnlSign = pnlAmount >= 0 ? '+' : '';
+
+            outputHTML = `
+                <div class="result-row info">
+                    <span>${stockName}</span>
+                    <span>${new Date().toLocaleString()}</span>
+                </div>
+                <div class="result-row">
+                    <span>建议补仓数量</span>
+                    <span class="highlight-green">${bestShares} 股</span>
+                </div>
+                <div class="result-row">
+                    <span>所需资金</span>
+                    <span>${moneyNeeded.toLocaleString(undefined, { minimumFractionDigits: 2 })} 元</span>
+                </div>
+                 <div class="result-row">
+                    <span>含手续费约</span>
+                    <span>${bestFees.toFixed(2)} 元</span>
+                </div>
+                <div class="result-row total">
+                    <span>达成目标成本</span>
+                    <span class="highlight-green">${targetCost.toFixed(3)} 元</span>
+                </div>
+                <hr style="border-top: 1px dashed #ccc; margin: 10px 0;">
+                <div class="result-row">
+                    <span>当前盈亏金额 (基于目标成本)</span>
+                    <span class="${pnlClass}">${pnlSign}${pnlAmount.toFixed(2).toLocaleString()} 元</span>
+                </div>
+                <div class="result-row">
+                    <span>当前盈亏比例</span>
+                    <span class="${pnlClass}">${pnlSign}${pnlPercent.toFixed(2)} %</span>
+                </div>
+                <div class="fee-note">盈亏是基于当前市价和目标成本计算的理论值。</div>
+            `;
+            
+            showResult(outputHTML);
+
+            // Save to History and Clear Form
+            saveHistory({
+                mode: 'target',
+                stockName,
+                memo,
+                input: { currentShares, currentCost, marketPrice, targetCost },
+                output: { bestShares, moneyNeeded, bestFees, pnlAmount, pnlPercent },
+                html: outputHTML
+            });
+            clearForm();
+            
+        } else {
+            outputHTML = `<div style="text-align:center; color: var(--text-sub);">计算超出范围（需补仓超过100万股），建议重新设定目标成本。</div>`;
+            showToast("需要补仓的数量过大，请调整目标成本。", 'warning');
+            showResult(outputHTML);
+        }
+    }
+
+    // --- History Management ---
+
+    function getHistory() {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+    }
+
+    function saveHistory(data) {
+        const history = getHistory();
+        const editingId = document.getElementById('editingId').value;
+        let toastMessage = "";
+
+        const newEntry = {
+            id: editingId || Date.now(),
+            timestamp: new Date().toLocaleString(),
+            ...data
+        };
+
+        if (editingId) {
+            const index = history.findIndex(item => item.id == editingId);
+            if (index !== -1) {
+                history[index] = newEntry;
+            }
+            toastMessage = "✅ 持仓记录已成功修改并重新保存！";
+        } else {
+            history.unshift(newEntry);
+            if (history.length > 50) history.pop();
+            toastMessage = "✅ 计算结果已保存到持仓列表！";
+        }
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+        showToast(toastMessage, 'success');
+    }
+
+    function deleteHistory(id) {
+        if (!confirm('确定要删除这条持仓记录吗？')) return;
+        let history = getHistory();
+        history = history.filter(item => item.id != id);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+        renderHistory();
+        showToast("已删除一条持仓记录。", 'warning');
+    }
+    
+    // 加载历史记录到输入框 (用于修改/重新计算)
+    function editHistory(id) {
+        const history = getHistory();
+        const item = history.find(entry => entry.id == id);
+        
+        if (!item) return;
+
+        // 1. 清空并填充输入框
+        clearForm();
+        document.getElementById('stockName').value = item.stockName || '';
+        document.getElementById('memo').value = item.memo || '';
+        document.getElementById('currentShares').value = item.input.currentShares;
+        document.getElementById('currentCost').value = item.input.currentCost;
+        document.getElementById('marketPrice').value = item.input.marketPrice;
+        
+        // 模式相关的输入
+        if (item.mode === 'cost') {
+            document.getElementById('buyShares').value = item.input.buyShares;
+        } else {
+            document.getElementById('targetCost').value = item.input.targetCost;
+        }
+        
+        // 2. 切换回相应的计算模式并显示结果
+        switchTab(item.mode);
+        document.getElementById('resultCard').innerHTML = item.html;
+        document.getElementById('resultCard').style.display = 'block';
+
+        // 3. 设置编辑模式标记
+        document.getElementById('editingId').value = id;
+        
+        showToast(`🔔 已加载 ${item.stockName} 的持仓记录，请修改后点击计算按钮重新保存。`, 'warning');
+        document.getElementById('currentShares').scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function renderHistory() {
+        const history = getHistory();
+        const list = document.getElementById('historyList');
+        list.innerHTML = '';
+
+        if (history.length === 0) {
+            list.innerHTML = `<p style="text-align:center; color:var(--text-sub); margin-top: 50px;">暂无持仓记录。</p>`;
+            return;
+        }
+
+        history.forEach(item => {
+            let detailLine1 = '';
+            let detailLine2 = '';
+            
+            // --- A股配色逻辑 ---
+            const pnlClass = item.output.pnlAmount >= 0 ? 'highlight-red' : 'highlight-green';
+            const pnlSign = item.output.pnlAmount >= 0 ? '+' : '';
+            
+            // 格式化盈亏金额
+            const pnlAmountFormatted = item.output.pnlAmount.toFixed(2).toLocaleString();
+            const pnlPercentFormatted = item.output.pnlPercent.toFixed(2);
+            
+            if (item.mode === 'cost') {
+                const buyShares = item.input.buyShares || 0;
+                const buyInfo = buyShares > 0 ? `补仓：${buyShares} 股 | 新成本：**${item.output.newAvg.toFixed(3)}** 元` : '仅计算盈亏 (零补仓)';
+                detailLine1 = `原成本：${item.input.currentCost.toFixed(3)} 元`;
+                detailLine2 = buyInfo;
+            } else {
+                detailLine1 = `原成本：${item.input.currentCost.toFixed(3)} 元 | 目标：${item.input.targetCost.toFixed(3)} 元`;
+                detailLine2 = `需补仓：**${item.output.bestShares ? item.output.bestShares.toLocaleString() + ' 股' : '计算失败'}**`;
+            }
+            
+            const memoSnippet = item.memo ? `<span class="memo-snippet">📝 备注: ${item.memo}</span>` : '';
+
+            const listItem = document.createElement('li');
+            listItem.className = 'history-item';
+            listItem.innerHTML = `
+                <div class="history-item-header">
+                    <span class="stock-name-display">${item.stockName || '未命名'}</span>
+                    <span class="timestamp-display">${item.timestamp}</span>
+                </div>
+                <div class="history-item-content">
+                    <span>${detailLine1}</span>
+                    <span>${detailLine2}</span>
+                    ${memoSnippet}
+                </div>
+                <div class="history-pnl">
+                    <span class="pnl-label">当前盈亏金额:</span>
+                    <span class="pnl-value ${pnlClass}">${pnlSign}${pnlAmountFormatted} 元</span>
+                    
+                    <span class="pnl-label">当前盈亏比例:</span>
+                    <span class="pnl-value ${pnlClass}">${pnlSign}${pnlPercentFormatted} %</span>
+                </div>
+                <div class="history-item-actions">
+                    <button class="btn-edit" onclick="editHistory(${item.id})">修改/重算</button>
+                    <button class="btn-delete" onclick="deleteHistory(${item.id})">删除</button>
+                </div>
+            `;
+            list.appendChild(listItem);
+        });
+    }
+    
+    // 页面加载完成后，默认渲染持仓列表
+    window.onload = function() {
+        renderHistory();
+        // 确保 calc area 默认隐藏
+        document.getElementById('calculator-area').style.display = 'none';
+    };
+</script>
+
+</body>
+</html>
